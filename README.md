@@ -4,6 +4,10 @@
 python train_imagenet.py --epochs 90 --lr 0.1 --scheduler cosine --task-name imagenet --base-dir ./traj --data-dir ../tiny-imagenet-200 --network resnet34 --batch-size 256 --gpuid 0 --num-workers 0
 ```
 
+```
+python analyze_target_probs.py --td-path ./traj/imagenet/training-dynamics --task-name imagenet --label-path ./labels.npy --early-epochs 30 --save-path ./results
+```
+
 ---
 ## 🚀 Usage  
 **`exp_imagenet`** for ImageNet experiments  
