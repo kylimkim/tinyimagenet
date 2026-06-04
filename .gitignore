@@ -1,0 +1,11 @@
+﻿tiny-imagenet-200/
+*.zip
+__pycache__/
+*.pyc
+
+# virtual environment
+.venv/
+
+# experiment outputs / logs
+wandb/
+traj/

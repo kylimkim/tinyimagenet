@@ -21,7 +21,7 @@ import sys
 # from dual_utils import beta_sampling
 import matplotlib.pyplot as plt
 import seaborn as sns
-import wandb 
+# import wandb
 import torch
 from scipy.stats import beta
 import numpy as np
@@ -51,7 +51,7 @@ parser = argparse.ArgumentParser(description='PyTorch IMageNet Training')
 ######################### Training Setting #########################
 parser.add_argument('--epochs', type=int, metavar='N',
                     help='The number of epochs to train a model.')
-parser.add_argument('--iterations', type=int, default=300000, metavar='N',
+parser.add_argument('--iterations', type=int, default=None, metavar='N',
                     help='The number of iteration to train a model; conflict with --epoch.')
 parser.add_argument('--batch-size', type=int, default=256, metavar='N',
                     help='input batch size for training (default: 256)')
@@ -103,6 +103,8 @@ parser.add_argument('--strata', type=int, default=50)
 parser.add_argument('--gpuid', type=str, default='4,5',
                     help='The ID of GPU.')
 parser.add_argument('--local_rank', type=str)
+parser.add_argument('--num-workers', type=int, default=4,
+                    help='Number of DataLoader worker processes.')
 
 ### for DUAL
 parser.add_argument('--d_c', type=float, help='d_c for dual + beta', default=11)
@@ -115,9 +117,9 @@ start_time = datetime.now()
 assert args.epochs is None or args.iterations is None, "Both epochs and iterations are used!"
 
 args.task_name = f'{args.coreset_mode}_{args.coreset_key}_{args.coreset_ratio}'
-wandb.init(project=f"DataPruning_ImageNet_{args.network}_{args.batch_size}_{args.coreset_mode}",
-           name = args.task_name,
-           config=args)
+# wandb.init(project=f"DataPruning_ImageNet_{args.network}_{args.batch_size}_{args.coreset_mode}",
+#            name = args.task_name,
+#            config=args)
 ######################### Set path variable #########################
 task_dir = os.path.join(args.base_dir, args.task_name)
 os.makedirs(task_dir, exist_ok=True)
@@ -205,21 +207,32 @@ testset = ImageNetDataset.get_ImageNet_test(os.path.join(data_dir, 'val'))
 print(len(testset))
 
 trainloader = torch.utils.data.DataLoader(
-    trainset, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=48)
+    trainset, batch_size=args.batch_size, shuffle=True, pin_memory=True, num_workers=args.num_workers)
 testloader = torch.utils.data.DataLoader(
-    testset, batch_size=args.batch_size * 2, shuffle=True, pin_memory=True, num_workers=48)
+    testset, batch_size=args.batch_size * 2, shuffle=True, pin_memory=True, num_workers=args.num_workers)
 
 iterations_per_epoch = len(trainloader)
 print(iterations_per_epoch)
 
+# Tiny ImageNet has 200 classes
+num_classes = 200
 if args.network == 'resnet34':
     print('Using resnet34.')
-    model = torchvision.models.resnet34(pretrained=False, progress=True)
+    model = torchvision.models.resnet34(pretrained=False, progress=True, num_classes=num_classes)
 if args.network == 'resnet50':
     print('Using resnet50.')
-    model = torchvision.models.resnet50(pretrained=False, progress=True)
+    model = torchvision.models.resnet50(pretrained=False, progress=True, num_classes=num_classes)
 
-model=torch.nn.parallel.DataParallel(model).cuda()
+# Adapt the ResNet stem for small (64x64) Tiny ImageNet inputs:
+# replace the 7x7 stride-2 conv with a 3x3 stride-1 conv and drop the initial
+# maxpool, so spatial resolution is preserved through the early layers.
+model.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+model.maxpool = nn.Identity()
+
+if torch.cuda.is_available():
+    model = torch.nn.parallel.DataParallel(model).cuda()
+else:
+    model = model.to(device)
 # import pdb; pdb.set_trace()
 # model = model.to(device)
 # model=model.cuda()
@@ -277,10 +290,10 @@ while num_of_iterations > 0:
     if current_epoch % epoch_per_testing == 0:
         test_loss, test_acc = trainer.test(model, testloader, criterion, device, log_interval=200,  printlog=True, topk=5)
         test_loss, test_acc = trainer.test(model, testloader, criterion, device, log_interval=200,  printlog=True, topk=1)
-        wandb.log({
-                "test_loss": test_loss,
-                "test_acc": test_acc
-                })
+        # wandb.log({
+        #         "test_loss": test_loss,
+        #         "test_acc": test_acc
+        #         })
         
         if test_acc > best_acc:
             print('Updating best ckpt.')
@@ -291,9 +304,9 @@ while num_of_iterations > 0:
                 'epoch': best_epoch
             }
             torch.save(state, best_ckpt_path)
-            wandb.log({
-                "best_accuracy": best_acc
-                })
+            # wandb.log({
+            #     "best_accuracy": best_acc
+            #     })
 
     current_epoch += 1
 

@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from datetime import datetime
 from ..utils import accuracy
-import wandb
+# import wandb
 import numpy as np
 # import habana_frameworks.torch.core as htcore
 
@@ -64,12 +64,12 @@ class Trainer(object):
                 if printlog: print("Exit early in epoch training.")
                 break
         
-        wandb.log({
-            'epoch': epoch,
-            "train_acc":correct/total * 100,
-            "train_loss": train_loss,
-            "learning_rate": scheduler.get_last_lr()[0],
-            })
+        # wandb.log({
+        #     'epoch': epoch,
+        #     "train_acc":correct/total * 100,
+        #     "train_loss": train_loss,
+        #     "learning_rate": scheduler.get_last_lr()[0],
+        #     })
         
         if printlog:
             print(f'>> Epoch [{epoch}]: Loss: {train_loss:.2f}')

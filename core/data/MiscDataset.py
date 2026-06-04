@@ -153,7 +153,8 @@ class ImageNetDataset(object):
         trainset = datasets.ImageFolder(
             path,
             transforms.Compose([
-                transforms.RandomResizedCrop(224),
+                # Tiny ImageNet images are 64x64
+                transforms.RandomCrop(64, padding=8, padding_mode="reflect"),
                 transforms.RandomHorizontalFlip(),
                 # transforms.ColorJitter(
                 #     brightness=0.4,
@@ -173,8 +174,7 @@ class ImageNetDataset(object):
         testset = datasets.ImageFolder(
             path,
             transforms.Compose([
-                transforms.Resize(256),
-                transforms.CenterCrop(224),
+                # Tiny ImageNet images are already 64x64; no resize/crop needed
                 transforms.ToTensor(),
                 normalize,
         ]))
