@@ -288,7 +288,7 @@ while num_of_iterations > 0:
     num_of_iterations -= iterations_per_epoch
 
     if current_epoch % epoch_per_testing == 0:
-        test_loss, test_acc = trainer.test(model, testloader, criterion, device, log_interval=200,  printlog=True, topk=5)
+        # test_loss, test_acc = trainer.test(model, testloader, criterion, device, log_interval=200,  printlog=True, topk=5)
         test_loss, test_acc = trainer.test(model, testloader, criterion, device, log_interval=200,  printlog=True, topk=1)
         # wandb.log({
         #         "test_loss": test_loss,
@@ -326,7 +326,26 @@ print('Last ckpt evaluation.')
 test_loss, test_acc = trainer.test(model, testloader, criterion, device, log_interval=200,  printlog=True, topk=1)
 
 print('done')
-print(f'Total time consumed: {(datetime.now() - start_time).total_seconds():.2f}')
+total_time = (datetime.now() - start_time).total_seconds()
+print(f'Total time consumed: {total_time:.2f}')
+
+######################### Record results to ./results.csv #########################
+import csv
+method = args.coreset_mode if args.coreset else 'whole'
+subset_ratio = args.coreset_ratio if args.coreset else 1.0
+
+results_path = './results.csv'
+write_header = not os.path.isfile(results_path)
+with open(results_path, 'a', newline='') as f:
+    writer = csv.writer(f)
+    if write_header:
+        writer.writerow(['task_name', 'method', 'subset_ratio', 'network',
+                         'best_acc', 'best_epoch', 'total_epochs'])
+    writer.writerow([
+        args.task_name, method, subset_ratio, args.network,
+        f'{best_acc:.4f}', best_epoch, current_epoch,
+    ])
+print(f'Results appended to {results_path}')
 print('==========================')
 print(f'Best acc: {best_acc * 100:.2f}')
 print(f'Best acc: {best_acc}')
