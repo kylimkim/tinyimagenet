@@ -20,7 +20,7 @@ Usage:
     python analyze_target_probs.py \
         --td-path /dir/to/td \
         --task-name imagenet \
-        --label-path ./labels.npy \
+        --data-dir ../tiny-imagenet-200 \
         --early-epochs 30 \
         --save-path ./results
 """
@@ -38,8 +38,19 @@ import matplotlib
 matplotlib.use('Agg')  # headless-safe
 import matplotlib.pyplot as plt
 
+from core.data import ImageNetDataset
 
-def load_target_probs(td_path, task_name, label_path):
+
+def get_labels(data_dir):
+    """Read ground-truth labels (in sample-index order) directly from the train
+    ImageFolder, like generate_importance_score_imagenet.py, so no explicit
+    labels .npy file is required."""
+    trainset = ImageNetDataset.get_ImageNet_train(os.path.join(data_dir, 'train'))
+    # torchvision ImageFolder exposes per-sample class indices in dataset order
+    return np.array(trainset.targets)
+
+
+def load_target_probs(td_path, task_name, data_dir):
     """Reconstruct target_probs of shape [num_epochs, num_samples] from the
     pickled training-dynamics files. Mirrors generate_importance_score_imagenet_dual.py."""
     total_result = {}
@@ -76,7 +87,7 @@ def load_target_probs(td_path, task_name, label_path):
     rearranged = torch.stack(probs_rearranged)
     rearranged = F.softmax(rearranged, dim=-1)
 
-    labels = np.load(label_path)
+    labels = get_labels(data_dir)
     labels_t = torch.from_numpy(labels).long().to(rearranged.device)
     labels_expanded = labels_t.view(1, -1, 1).expand(rearranged.size(0), -1, 1)
     target_probs = torch.gather(rearranged, dim=2, index=labels_expanded).squeeze(-1)
@@ -99,7 +110,7 @@ def main():
     parser = argparse.ArgumentParser(description='Early vs late cumulative target prob analysis.')
     parser.add_argument('--td-path', type=str, required=True, help='Dir of saved training-dynamics pickles.')
     parser.add_argument('--task-name', type=str, required=True, help='Task name used in the td filenames.')
-    parser.add_argument('--label-path', type=str, required=True, help='Path to ground-truth labels (.npy).')
+    parser.add_argument('--data-dir', type=str, required=True, help='Dataset dir (expects a train/ subfolder); labels are read from it.')
     parser.add_argument('--early-epochs', type=int, default=30, help='Number of early epochs for the early window.')
     parser.add_argument('--save-path', type=str, default='./results', help='Dir to write the CSV/plots.')
     parser.add_argument('--no-plots', action='store_true', help='Skip saving plots.')
@@ -107,7 +118,7 @@ def main():
 
     os.makedirs(args.save_path, exist_ok=True)
 
-    target_probs = load_target_probs(args.td_path, args.task_name, args.label_path)
+    target_probs = load_target_probs(args.td_path, args.task_name, args.data_dir)
     T, N = target_probs.shape
     print(f'Loaded target_probs: {T} epochs x {N} samples')
 

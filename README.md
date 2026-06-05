@@ -4,8 +4,9 @@
 python train_imagenet.py --epochs 90 --lr 0.1 --scheduler cosine --task-name imagenet --base-dir ./traj --data-dir ../tiny-imagenet-200 --network resnet34 --batch-size 256 --gpuid 0 --num-workers 0
 ```
 
+Analyze the training dynamics: correlation (Spearman & Pearson) between early (first 30 epochs) and full-trajectory cumulative target probabilities, plus Jaccard overlap of the hardest-sample subsets selected by each over pruning ratios 0.1–0.9:
 ```
-python analyze_target_probs.py --td-path ./traj/imagenet/training-dynamics --task-name imagenet --label-path ./labels.npy --early-epochs 30 --save-path ./results
+python analyze_target_probs.py --td-path ./traj/imagenet/training-dynamics --task-name imagenet --data-dir ../tiny-imagenet-200 --early-epochs 30 --save-path ./results
 ```
 
 ---
