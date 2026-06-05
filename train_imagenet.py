@@ -64,6 +64,9 @@ parser.add_argument('--ignore-td', action='store_true', default=False)
 ######################### Print Setting #########################
 parser.add_argument('--iterations-per-testing', type=int, default=800, metavar='N',
                     help='The number of iterations for testing model')
+parser.add_argument('--epochs-per-testing', type=int, default=None, metavar='N',
+                    help='Test every N epochs. Overrides --iterations-per-testing if set. '
+                         'Useful for small coresets where iterations/epoch is low.')
 
 ######################### Path Setting #########################
 parser.add_argument('--data-dir', type=str, default='/storage/dataset/imagenet',
@@ -246,7 +249,10 @@ if args.iterations is None:
 else:
     num_of_iterations = args.iterations
 
-epoch_per_testing = max(args.iterations_per_testing // iterations_per_epoch, 1)
+if args.epochs_per_testing is not None:
+    epoch_per_testing = max(args.epochs_per_testing, 1)
+else:
+    epoch_per_testing = max(args.iterations_per_testing // iterations_per_epoch, 1)
 
 print(f'Total epoch: {num_of_iterations // iterations_per_epoch}')
 print(f'Iterations per epoch: {iterations_per_epoch}')

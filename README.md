@@ -16,12 +16,12 @@ python generate_importance_score_imagenet.py --data-dir ../tiny-imagenet-200 --b
 
 Train on a 10% coreset selected by the forgetting score (uses `mask_forgetting.npy` from the scoring step):
 ```
-python train_imagenet.py --epochs 90 --lr 0.1 --scheduler cosine --task-name forgetting --base-dir ./traj --data-dir ../tiny-imagenet-200 --network resnet34 --batch-size 256 --gpuid 0 --num-workers 0 --coreset --coreset-mode forgetting --mask_npy_path ./scores/mask_forgetting.npy --coreset-ratio 0.1 --ignore-td
+python train_imagenet.py --epochs 90 --lr 0.1 --scheduler cosine --task-name forgetting --base-dir ./traj --data-dir ../tiny-imagenet-200 --network resnet34 --batch-size 256 --gpuid 0 --num-workers 0 --coreset --coreset-mode forgetting --mask_npy_path ./scores/mask_forgetting.npy --coreset-ratio 0.1 --ignore-td --epochs-per-testing 5
 ```
 
 Train on a 10% random coreset (baseline; no importance scores needed):
 ```
-python train_imagenet.py --epochs 90 --lr 0.1 --scheduler cosine --task-name random --base-dir ./traj --data-dir ../tiny-imagenet-200 --network resnet34 --batch-size 256 --gpuid 0 --num-workers 0 --coreset --coreset-mode random --coreset-ratio 0.1 --ignore-td
+python train_imagenet.py --epochs 90 --lr 0.1 --scheduler cosine --task-name random --base-dir ./traj --data-dir ../tiny-imagenet-200 --network resnet34 --batch-size 256 --gpuid 0 --num-workers 0 --coreset --coreset-mode random --coreset-ratio 0.1 --ignore-td --epochs-per-testing 5
 ```
 
 ---
