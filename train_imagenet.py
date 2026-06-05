@@ -155,47 +155,51 @@ coreset_descending = (args.data_score_descending == 1)
 total_num = len(trainset)
 
 if args.coreset:
+    n = int(args.coreset_ratio * total_num)
+
     if args.coreset_mode == 'random':
         coreset_index = CoresetSelection.random_selection(total_num=len(trainset), num=args.coreset_ratio * len(trainset))
-    else:
+
+    elif args.coreset_mode in ('coreset', 'stratified'):
+        # these modes consume the pickled data_score dict
         with open(args.data_score_path, 'rb') as f:
             data_score = pickle.load(f)
 
-    if args.coreset_mode == 'coreset':
-        coreset_index = CoresetSelection.score_monotonic_selection(data_score=data_score, key=args.coreset_key, ratio=args.coreset_ratio, descending=(args.data_score_descending == 1), class_balanced=(args.class_balanced == 1))
+        if args.coreset_mode == 'coreset':
+            coreset_index = CoresetSelection.score_monotonic_selection(data_score=data_score, key=args.coreset_key, ratio=args.coreset_ratio, descending=(args.data_score_descending == 1), class_balanced=(args.class_balanced == 1))
 
-    if args.coreset_mode == 'stratified':
-        mis_num = int(args.mis_ratio * total_num)
-        data_score, score_index = CoresetSelection.mislabel_mask(data_score, mis_key='accumulated_margin', mis_num=mis_num, mis_descending=False, coreset_key=args.coreset_key)
+        if args.coreset_mode == 'stratified':
+            mis_num = int(args.mis_ratio * total_num)
+            data_score, score_index = CoresetSelection.mislabel_mask(data_score, mis_key='accumulated_margin', mis_num=mis_num, mis_descending=False, coreset_key=args.coreset_key)
 
-        print(f'Strata: {args.strata}')
-        coreset_num = int(args.coreset_ratio * total_num)
-        coreset_index, _ = CoresetSelection.stratified_sampling(data_score=data_score, coreset_key=args.coreset_key, coreset_num=coreset_num)
-        coreset_index = score_index[coreset_index]
+            print(f'Strata: {args.strata}')
+            coreset_num = int(args.coreset_ratio * total_num)
+            coreset_index, _ = CoresetSelection.stratified_sampling(data_score=data_score, coreset_key=args.coreset_key, coreset_num=coreset_num)
+            coreset_index = score_index[coreset_index]
 
-    if args.coreset_mode == 'dual':
-        mask = np.load(args.mask_npy_path)
-        n = int(coreset_ratio * total_num)
-        coreset_index = mask[-n:]
-        
-    if args.coreset_mode == 'dual_beta':
+    elif args.coreset_mode == 'dual_beta':
         score = np.load(args.score_npy_path)
         mask = np.load(args.mask_npy_path)
         with open(args.probs_path, 'rb') as f:
             target_probs = pickle.load(f)
         remain_id, pred_std, pred_mean, px, py, joint_pxy = beta_sampling(1-args.coreset_ratio, args.c_d, target_probs, score, mask)
         coreset_index = remain_id
-    
-    if args.coreset_mode == 'dynunc':
-        mask = np.load(args.mask_npy_path)
-        n = int(coreset_ratio * total_num)
-        coreset_index = mask[-n:]
 
-    if args.coreset_mode == 'tdds':
+    else:
+        # npy-mask-based selection. mask = argsort(score) ascending.
+        # Covers DUAL/Dyn-Unc/TDDS and the baseline scores
+        # (el2n, forgetting, accumulated_margin, correctness).
+        # higher score = MORE important (keep) for: dual, dynunc, tdds, el2n, forgetting -> mask[-n:]
+        # higher score = EASIER for: accumulated_margin, correctness -> keep the hard (low) end mask[:n]
+        valid_modes = ('dual', 'dynunc', 'tdds', 'el2n', 'forgetting', 'accumulated_margin', 'correctness')
+        if args.coreset_mode not in valid_modes:
+            raise ValueError(f"Unknown coreset_mode '{args.coreset_mode}'. Expected one of: random, coreset, stratified, dual_beta, {', '.join(valid_modes)}")
         mask = np.load(args.mask_npy_path)
-        n = int(coreset_ratio * total_num)
-        coreset_index = mask[-n:]
-        
+        if args.coreset_mode in ('accumulated_margin', 'correctness'):
+            coreset_index = mask[:n]
+        else:
+            coreset_index = mask[-n:]
+
     trainset = torch.utils.data.Subset(trainset, coreset_index)
     print(len(trainset))
 ######################### Coreset Selection end #########################

@@ -18,6 +18,8 @@ parser.add_argument('--data-dir', type=str, default='/home/users/krafton_s/datas
 parser.add_argument('--base-dir', type=str, default='./data-model/imagenet')
 parser.add_argument('--task-name', type=str, )
 parser.add_argument('--data-score-path', type=str)
+parser.add_argument('--save-path', type=str, default='./scores',
+                    help='Dir to save per-method score/mask .npy files.')
 
 args = parser.parse_args()
 
@@ -82,7 +84,8 @@ for batch_idx, (idx, (_, y)) in enumerate(trainloader):
 data_importance = {}
 targets = torch.tensor(targets)
 data_size = targets.shape[0]
-num_classes = 1000
+# Tiny ImageNet has 200 classes (full ImageNet would be 1000)
+num_classes = 200
 
 data_importance['targets'] = targets.type(torch.int32)
 data_importance['el2n'] = torch.zeros(data_size).type(torch.float32)
@@ -105,7 +108,18 @@ for i in range(1,91):
          td_data = pickle.load(f)
     training_dynamics_metrics(td_data['training_dynamics'], data_importance)
 
-print(f'Saving data score at {args.data_score_path}')
-with open(args.data_score_path, 'wb') as handle:
-    pickle.dump(args.data_score_path, handle)
+os.makedirs(args.save_path, exist_ok=True)
+print(f'Saving per-method score/mask npy files at {args.save_path}')
+
+# mask = argsort(score) ascending; train_imagenet.py keeps mask[-n:], i.e. the
+# n highest-scoring samples. el2n / forgetting: higher = harder (keep these).
+# accumulated_margin / correctness: higher = easier, so use mask[:n] (or set
+# --data-score-descending) when selecting hard examples from those.
+methods = ['el2n', 'forgetting', 'accumulated_margin', 'correctness']
+for m in methods:
+    score = data_importance[m].cpu().numpy()
+    mask = np.argsort(score)
+    np.save(os.path.join(args.save_path, f'score_{m}.npy'), score)
+    np.save(os.path.join(args.save_path, f'mask_{m}.npy'), mask)
+    print(f'  saved score_{m}.npy and mask_{m}.npy')
     

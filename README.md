@@ -9,6 +9,21 @@ Analyze the training dynamics: correlation (Spearman & Pearson) between early (f
 python analyze_target_probs.py --td-path ./traj/imagenet/training-dynamics --task-name imagenet --data-dir ../tiny-imagenet-200 --early-epochs 30 --save-path ./results
 ```
 
+Compute baseline importance scores (EL2N, forgetting, accumulated margin, correctness) for each sample from the saved training dynamics. Saves per-method `score_{method}.npy` and `mask_{method}.npy` under `--save-path`:
+```
+python generate_importance_score_imagenet.py --data-dir ../tiny-imagenet-200 --base-dir ./traj --task-name imagenet --save-path ./scores
+```
+
+Train on a 10% coreset selected by the forgetting score (uses `mask_forgetting.npy` from the scoring step):
+```
+python train_imagenet.py --epochs 90 --lr 0.1 --scheduler cosine --task-name forgetting --base-dir ./traj --data-dir ../tiny-imagenet-200 --network resnet34 --batch-size 256 --gpuid 0 --num-workers 0 --coreset --coreset-mode forgetting --mask_npy_path ./scores/mask_forgetting.npy --coreset-ratio 0.1 --ignore-td
+```
+
+Train on a 10% random coreset (baseline; no importance scores needed):
+```
+python train_imagenet.py --epochs 90 --lr 0.1 --scheduler cosine --task-name random --base-dir ./traj --data-dir ../tiny-imagenet-200 --network resnet34 --batch-size 256 --gpuid 0 --num-workers 0 --coreset --coreset-mode random --coreset-ratio 0.1 --ignore-td
+```
+
 ---
 ## 🚀 Usage  
 **`exp_imagenet`** for ImageNet experiments  
